@@ -62,7 +62,7 @@ string call_deepseek_api(const string& input) {
     httplib::SSLClient client(host, 443); // https
 
     // 设置请求prompt
-    string prompt = "I'm going to give you an article, and you need to summarize it as succinctly as possible in Chinese, in no more than 30 words, using only markdown body formatting, without any emoticons:\n" + input;
+    string prompt = "I'm going to give you an article, and you need to summarize it as succinctly as possible in Chinese, in no more than 30 words, using only pure string formatting, without any emoticons:\n" + input;
 
     // 构造请求JSON
     json request_body = {
@@ -97,7 +97,7 @@ string call_deepseek_api(const string& input) {
             json response_json = json::parse(res->body);
             return response_json["choices"][0]["message"]["content"].get<string>();
         } catch (const std::exception& e) {
-            std::cerr << "JSON parsing error: " << e.what() << endl;
+            cerr << "JSON parsing error: " << e.what() << endl;
             return "";
         }
     } else {
