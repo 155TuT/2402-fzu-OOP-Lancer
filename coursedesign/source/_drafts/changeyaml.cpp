@@ -29,7 +29,7 @@ bool vaildinput_yon(){
     do {
         cin >> p;
         p = toupper(p);
-            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
         if (cin.fail()) {
             cin.clear();
             cerr << "input stream error!" << endl;
@@ -60,10 +60,8 @@ string call_deepseek_api(const string& input) {
     const string endpoint = "/v1/chat/completions";
     const string host = "api.deepseek.com";
     httplib::SSLClient client(host, 443); // https
-
     // 设置请求prompt
     string prompt = "I'm going to give you an article, and you need to summarize it as succinctly as possible in Chinese, in no more than 30 words, using only pure string formatting, without any emoticons:\n" + input;
-
     // 构造请求JSON
     json request_body = {
         {"model", "deepseek-chat"},
@@ -76,13 +74,11 @@ string call_deepseek_api(const string& input) {
         {"temperature", 0.7},
         {"max_tokens", 2048}
     };
-
     // 设置请求头
     httplib::Headers headers = {
         {"Content-Type", "application/json"},
         {"Authorization", "Bearer " + api_key}
     };
-
     // 发送POST请求
     auto res = client.Post(
         endpoint.c_str(),
@@ -90,7 +86,6 @@ string call_deepseek_api(const string& input) {
         request_body.dump(),
         "application/json"
     );
-
     // 处理响应
     if (res && res->status == 200) {
         try {
@@ -101,19 +96,14 @@ string call_deepseek_api(const string& input) {
             return "";
         }
     } else {
-        if (res) {
-            cerr << "API request failed with status code: " << res->status 
-                     << ", echo: " << res->body << endl;
-        } else {
-            cerr << "work request failed" << endl;
-        }
+        if (res) cerr << "API request failed with status code: " << res->status << ", echo: " << res->body << endl;
+        else cerr << "work request failed" << endl;
         return "";
     }
 }
 
 class DefaultData {
 private:
-    //vector<string> tagList;
     vector<string> articleTagslist;
     string articletitle;
     string filename;
@@ -235,23 +225,15 @@ public:
         if (!file.is_open()) {
             return false;
         }
-
         string line;
-        while (getline(file, line)) {
-            excerpt += line;
-        }
+        while (getline(file, line)) excerpt += line;
         file.close();
-
-        if (excerpt.empty()) {
-            return false;
-        }
-        return true;
+        return !excerpt.empty();
     }
 
     /**
      * 设置文章摘要
-     * @note 如果用户选择使用AI生成摘要，则调用DeepSeek API进行生成
-     * @note 如果用户选择手动输入摘要，则直接使用用户输入的内容
+     * @note 如选择使用AI生成摘要，则调用DeepSeek API进行生成，如选择手动输入摘要，则直接使用用户输入的内容
      * @param content 文章内容
      * @return 文章摘要
      */
@@ -398,16 +380,19 @@ public:
 class YAMLProcessor {
 private:
     string articletitle; // origin title
+    string outputFilename; // origin-title.md
+    string linkFilename; // origin-title
+
     string generatedate;
     string generatetime;
+
     string content;
     string yamlHeader;
     string bodyContent;
+    
     vector<string> tags;
     string excerpt;
     string sticky;
-    string outputFilename; // origin-title.md
-    string linkFilename; // origin-title
 
     // 字符串清理
     void trim(string &s) {
@@ -429,37 +414,28 @@ private:
             string lang = match[1].str();
             transform(lang.begin(), lang.end(), lang.begin(), ::toupper);
             if (lang == "CPP") lang = "C++";
-            if (lang != "IN" && lang != "OUT" && lang != "ANS" && find(tags.begin(), tags.end(), lang) == tags.end()) {
-                tags.push_back(lang);
-            }
+            if (lang != "IN" && lang != "OUT" && lang != "ANS" && find(tags.begin(), tags.end(), lang) == tags.end()) tags.push_back(lang);
             temp = match.suffix().str();
         }
     }
 
     // 排除md中的一级标题 (to be improved)
-    /*void processMarkdownTitle() {
+    void processMarkdownTitle() {
         vector<string> h1_matches;
         regex h1_regex(R"(\n?#\s+([^\n]+))");
         
         // 第一步：查找所有一级标题
         auto h1_begin = sregex_iterator(bodyContent.begin(), bodyContent.end(), h1_regex);
-        for (auto it = h1_begin; it != sregex_iterator(); ++it) {
-            h1_matches.push_back((*it)[1].str());
-        }
+        for (auto it = h1_begin; it != sregex_iterator(); it++) h1_matches.push_back((*it)[1].str());
     
         // 没有一级标题
-        if (h1_matches.empty()) {
-            return;
-        }
+        if (h1_matches.empty()) return;
     
         // 仅有一个一级标题
         if (h1_matches.size() == 1) {
             cout << "here find a title in the content: " << h1_matches[0] << endl;
             cout << "would you like to use this title as the article title? (y/n)" << endl;
-            if (vaildinput_yon()) {
-                articletitle = h1_matches[0];
-                outputFilename = sanitizeFilename(articletitle);
-            }
+            if (vaildinput_yon()) setTitle(h1_matches[0]);
             // 删除该一级标题
             bodyContent = regex_replace(bodyContent, h1_regex, "$1");
             return;
@@ -473,7 +449,7 @@ private:
         string result;
         size_t last_pos = 0;
         
-        for (auto it = begin; it != end; ++it) {
+        for (auto it = begin; it != end; it++) {
             // 添加非匹配部分
             result += bodyContent.substr(last_pos, it->position() - last_pos);
             
@@ -495,21 +471,26 @@ private:
         bodyContent = result;
         cout << "too many first-level title were found in the text and have been automatically downgraded for you" << endl;
         return;
-    }*/
+    }
     
 public:
     YAMLProcessor() {
+        system("chcp 65001 > nul"); // 设置控制台编码为UTF-8
+        system("cls"); // 清屏
         cout << "welcome to the YAML front matter processor!" << endl;
         cout << "this program will help you to generate the YAML front matter for your markdown file." << endl;
         cout << "the default file to load is \"draft\"." << endl << "would you like to change file to read? (y/n)" << endl;
+        setFileName(); // 设置默认文件名为draft.md
         while (vaildinput_yon()) {
             cout << "please input the file name behind:" << endl;
+            cout << "notice: file name can only use English" << endl;
             string filename;
-            getline(cin, filename);
+            getline(cin, filename); // 防止空格干扰
             if (!loadFile(filename + ".md")) { 
                 cerr << "failed in loading this file" << endl << "are you still want to change file to read? (y/n)" << endl;
             } else {
                 cout << "load the file: "<< filename << " successfully" << endl;
+                setFileName(filename); // 设置文件名
                 break;
             }
         }
@@ -546,14 +527,14 @@ public:
      */
     bool parseHeader() {
         size_t first = content.find("---\n");
-        size_t second = content.find("---\n", first+4);
+        size_t second = content.find("---\n", first + 4);
         if (first == string::npos || second == string::npos){
             bodyContent = content;
             return false;
         }
 
-        yamlHeader = content.substr(first+4, second-first-4);
-        bodyContent = content.substr(second+4);
+        yamlHeader = content.substr(first + 4, second - first - 4);
+        bodyContent = content.substr(second + 4);
 
         // 解析标题作为输出文件名
         istringstream headerStream(yamlHeader);
@@ -587,16 +568,14 @@ public:
      * 获取文章标题
      * @return 文章标题
      */
-    string getTitle() const {
-        return articletitle;
-    }
+    string getTitle() const { return articletitle; }
 
     /**
      * 设置文件名
      * @param filename 文件名
      * @note 文件名会被转换为小写，并替换空格为短横线
      */
-    void setFileName(const string &filename) {
+    void setFileName(const string &filename = "draft") {
         string sanitized = filename;
         replace(sanitized.begin(), sanitized.end(), ' ', '-');
         sanitized.erase(remove_if(sanitized.begin(), sanitized.end(),
@@ -610,57 +589,43 @@ public:
      * 设置文章日期
      * @param date 生成日期
      */
-    void setDate(const string& date) {
-        generatedate = date;
-    }
+    void setDate(const string& date) { generatedate = date; }
 
     /**
      * 获取文章日期
      * @return 文章日期
      */
-    string getDate() const {
-        return generatedate;
-    }
+    string getDate() const { return generatedate; }
 
     /**
      * 设置文章时间
      * @param time 生成时间
      */
-    void setTime(const string& time) {
-        generatetime = time;
-    }
+    void setTime(const string& time) { generatetime = time; }
 
     /**
      * 获取文章时间
      * @return 文章时间
      */
-    string getTime() const {
-        return generatetime;
-    }
+    string getTime() const { return generatetime; }
 
     /**
      * 获取文件名称
      * @return 文件名称
      */
-    string getFileName() const {
-        return linkFilename;
-    }
+    string getFileName() const { return linkFilename; }
 
     /**
      * 获取文章内容
      * @return 文章内容
      */
-    string getBodyContent() const {
-        return bodyContent;
-    }
+    string getBodyContent() const { return bodyContent; }
 
     /**
      * 设置文章摘要
      * @param texts 摘要文本
      */
-    void setExcerpts(const string& texts) {
-        excerpt = texts;
-    }
+    void setExcerpts(const string& texts) { excerpt = texts; }
 
     /**
      * 设置文章标签
@@ -696,33 +661,23 @@ public:
         
         // 添加生成时间
         newHeader << "date: " << generatedate;
-        if(!generatetime.empty()) {
-            newHeader << " " << generatetime;
-        }
+        if(!generatetime.empty()) newHeader << " " << generatetime;
         newHeader << "\n";
 
         // 添加自定标签
-        if (!tags.empty()) {
+        if (!tags.empty()) { 
             newHeader << "tags:";
-            for (const auto &tag : tags) {
-                newHeader << "\n - " << tag;
-            }
+            for (const auto &tag : tags) newHeader << "\n - " << tag;
         }
 
         // 添加摘要信息
-        if (!excerpt.empty()) {
-          newHeader << "\nexcerpt: \"" << excerpt << "\"";
-        }
+        if (!excerpt.empty()) newHeader << "\nexcerpt: \"" << excerpt << "\"";
 
         // 添加置顶等级
-        if (!sticky.empty()) {
-            newHeader << "\nsticky: " << sticky;
-        }
+        if (!sticky.empty()) newHeader << "\nsticky: " << sticky;
 
         // 添加封面链接
-        if (!generatedate.empty()) {
-            newHeader << "\ncover: \"" << generateCoverURL(linkFilename) << "\"";
-        }
+        if (!generatedate.empty()) newHeader << "\ncover: \"" << generateCoverURL(linkFilename) << "\""; 
         
         newHeader << "\n---\n";
 
@@ -735,16 +690,11 @@ public:
      */
     void saveFile() {
         using namespace filesystem;
-        if (outputFilename.empty()) {
-            outputFilename = "../_posts/output.md";
-        } else {
-            outputFilename = "../_posts/" + outputFilename;
-        }
+        if (outputFilename.empty()) outputFilename = "../_posts/output.md";
+        else outputFilename = "../_posts/" + outputFilename;
 
         filesystem::path dir = filesystem::path(outputFilename).parent_path();
-        if (!dir.empty()) {
-            filesystem::create_directories(dir);
-        }
+        if (!dir.empty()) filesystem::create_directories(dir);
 
         ofstream out(outputFilename);
         out << content;
