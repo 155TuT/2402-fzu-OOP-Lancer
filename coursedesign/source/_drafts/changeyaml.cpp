@@ -33,9 +33,7 @@ bool vaildinput_yon(){
         if (cin.fail()) {
             cin.clear();
             cerr << "input stream error!" << endl;
-        } else if (p != 'Y' && p != 'N') {
-               cerr << "invalid choice, please enter y or n." << endl;
-        }
+        } else if (p != 'Y' && p != 'N') cerr << "invalid choice, please enter y or n." << endl;
     } while (p != 'Y' && p != 'N');
     return p == 'Y';
 }
@@ -297,12 +295,11 @@ public:
         auto now = chrono::system_clock::now();
         time_t now_time_t = chrono::system_clock::to_time_t(now);
 
-        std::tm* now_tm = std::localtime(&now_time_t);
+        tm* now_tm = localtime(&now_time_t);
         if (now_tm == nullptr) return false;
 
         ostringstream oss;
         oss << put_time(localtime(&now_time_t), "%Y/%m/%d %H:%M:%S");
-
         string formattedDateTime = oss.str();
 
         sysdate = formattedDateTime.substr(0, 10);
@@ -389,7 +386,7 @@ private:
     string content;
     string yamlHeader;
     string bodyContent;
-    
+
     vector<string> tags;
     string excerpt;
     string sticky;
